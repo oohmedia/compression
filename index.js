@@ -20,19 +20,44 @@ const onHeaders = require("on-headers");
 const vary = require("vary");
 const zlib = require("zlib");
 
-/**
- * Module exports.
- */
+const toBuffer = (chunk, encoding) =>
+  Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, encoding);
 
-module.exports = compression;
-module.exports.filter = shouldCompress;
+const shouldCompress = (req, res) => {
+  const type = res.getHeader("Content-Type");
+
+  if (type === undefined || !compressible(type)) {
+    debug("%s not compressible", type);
+    return false;
+  }
+
+  return true;
+};
+
+const chunkLength = (chunk, encoding) => {
+  if (!chunk) {
+    return 0;
+  }
+
+  return Buffer.isBuffer(chunk)
+    ? chunk.length
+    : Buffer.byteLength(chunk, encoding);
+};
+
+const shouldTransform = (req, res) => {
+  const cacheControlNoTransformRegExp = /(?:^|,)\s*?no-transform\s*?(?:,|$)/;
+  const cacheControl = res.getHeader("Cache-Control");
+
+  // Don't compress for Cache-Control: no-transform
+  // https://tools.ietf.org/html/rfc7234#section-5.2.2.4
+  return !cacheControl || !cacheControlNoTransformRegExp.test(cacheControl);
+};
 
 /**
  * Module variables.
  * @private
  */
 
-const cacheControlNoTransformRegExp = /(?:^|,)\s*?no-transform\s*?(?:,|$)/;
 const defaultThreshold = 1024;
 
 /**
@@ -65,6 +90,9 @@ function compression(options) {
   }
 
   return function compression(req, res, next) {
+    const addListeners = (stream, on, listeners) =>
+      listeners.forEach((listener) => on.apply(stream, listener));
+
     let ended = false;
     let length;
     let listeners = [];
@@ -240,65 +268,5 @@ function compression(options) {
   };
 }
 
-/**
- * Add bufferred listeners to stream
- * @private
- */
-
-function addListeners(stream, on, listeners) {
-  for (let i = 0; i < listeners.length; i++) {
-    on.apply(stream, listeners[i]);
-  }
-}
-
-/**
- * Get the length of a given chunk
- */
-
-function chunkLength(chunk, encoding) {
-  if (!chunk) {
-    return 0;
-  }
-
-  return !Buffer.isBuffer(chunk)
-    ? Buffer.byteLength(chunk, encoding)
-    : chunk.length;
-}
-
-/**
- * Default filter function.
- * @private
- */
-
-function shouldCompress(req, res) {
-  const type = res.getHeader("Content-Type");
-
-  if (type === undefined || !compressible(type)) {
-    debug("%s not compressible", type);
-    return false;
-  }
-
-  return true;
-}
-
-/**
- * Determine if the entity should be transformed.
- * @private
- */
-
-function shouldTransform(req, res) {
-  const cacheControl = res.getHeader("Cache-Control");
-
-  // Don't compress for Cache-Control: no-transform
-  // https://tools.ietf.org/html/rfc7234#section-5.2.2.4
-  return !cacheControl || !cacheControlNoTransformRegExp.test(cacheControl);
-}
-
-/**
- * Coerce arguments to Buffer
- * @private
- */
-
-function toBuffer(chunk, encoding) {
-  return !Buffer.isBuffer(chunk) ? Buffer.from(chunk, encoding) : chunk;
-}
+module.exports = compression;
+module.exports.filter = shouldCompress;

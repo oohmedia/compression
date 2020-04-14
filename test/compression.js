@@ -8,6 +8,76 @@ const request = require("supertest");
 const zlib = require("zlib");
 const compression = require("..");
 
+const shouldHaveBodyLength = (length) => (res) => {
+  assert.strictEqual(
+    res.text.length,
+    length,
+    `should have body length of ${length}`
+  );
+};
+
+function shouldNotHaveHeader(header) {
+  return (res) => {
+    assert.ok(
+      !(header.toLowerCase() in res.headers),
+      `should not have header ${header}`
+    );
+  };
+}
+
+function writeAndFlush(stream, count, buf) {
+  let writes = 0;
+
+  return () => {
+    if (writes++ >= count) return;
+    if (writes === count) {
+      stream.end(buf);
+      return;
+    }
+    stream.write(buf);
+    stream.flush();
+  };
+}
+
+function unchunk(encoding, onchunk, onend) {
+  return (res) => {
+    let stream;
+
+    assert.strictEqual(res.headers["content-encoding"], encoding);
+
+    switch (encoding) {
+      case "deflate":
+        stream = res.pipe(zlib.createInflate());
+        break;
+      case "gzip":
+        stream = res.pipe(zlib.createGunzip());
+        break;
+      case "br":
+        stream = res.pipe(zlib.createBrotliDecompress());
+        break;
+      default:
+    }
+
+    stream.on("data", onchunk);
+    stream.on("end", onend);
+  };
+}
+
+function createServer(opts, fn) {
+  const _compression = compression(opts);
+  return http.createServer((req, res) => {
+    _compression(req, res, (err) => {
+      if (err) {
+        res.statusCode = err.status || 500;
+        res.end(err.message);
+        return;
+      }
+
+      fn(req, res);
+    });
+  });
+}
+
 describe("compression()", () => {
   it("should skip HEAD", (done) => {
     const server = createServer({ threshold: 0 }, (req, res) => {
@@ -161,23 +231,6 @@ describe("compression()", () => {
     let client;
     let drained = false;
     let resp;
-    const server = createServer({ threshold: 0 }, (req, res) => {
-      resp = res;
-
-      res.on("drain", () => {
-        drained = true;
-      });
-
-      res.setHeader("Content-Type", "text/plain");
-      res.write("start");
-      pressure();
-    });
-
-    crypto.pseudoRandomBytes(1024 * 128, (err, chunk) => {
-      if (err) return done(err);
-      buf = chunk;
-      return pressure();
-    });
 
     function pressure() {
       if (!buf || !resp || !client) return;
@@ -196,6 +249,24 @@ describe("compression()", () => {
       resp.on("finish", cb);
       client.resume();
     }
+
+    const server = createServer({ threshold: 0 }, (req, res) => {
+      resp = res;
+
+      res.on("drain", () => {
+        drained = true;
+      });
+
+      res.setHeader("Content-Type", "text/plain");
+      res.write("start");
+      pressure();
+    });
+
+    crypto.pseudoRandomBytes(1024 * 128, (err, chunk) => {
+      if (err) return done(err);
+      buf = chunk;
+      return pressure();
+    });
 
     request(server)
       .get("/")
@@ -218,6 +289,23 @@ describe("compression()", () => {
     let client;
     let drained = false;
     let resp;
+
+    function pressure() {
+      if (!buf || !resp || !client) return;
+
+      while (resp.write(buf) !== false) {
+        resp.flush();
+      }
+
+      resp.on("drain", () => {
+        assert.ok(drained);
+        assert.ok(resp.write("end"));
+        resp.end();
+      });
+      resp.on("finish", cb);
+      client.resume();
+    }
+
     const server = createServer(
       {
         filter() {
@@ -242,22 +330,6 @@ describe("compression()", () => {
       buf = chunk;
       return pressure();
     });
-
-    function pressure() {
-      if (!buf || !resp || !client) return;
-
-      while (resp.write(buf) !== false) {
-        resp.flush();
-      }
-
-      resp.on("drain", () => {
-        assert.ok(drained);
-        assert.ok(resp.write("end"));
-        resp.end();
-      });
-      resp.on("finish", cb);
-      client.resume();
-    }
 
     request(server)
       .get("/")
@@ -312,6 +384,51 @@ describe("compression()", () => {
   });
 
   describe("http2", () => {
+    function createHttp2Server(opts, fn) {
+      const _compression = compression(opts);
+      const server = http2.createServer((req, res) => {
+        _compression(req, res, (err) => {
+          if (err) {
+            res.statusCode = err.status || 500;
+            res.end(err.message);
+            return;
+          }
+
+          fn(req, res);
+        });
+      });
+      server.listen(0, "127.0.0.1");
+      return server;
+    }
+
+    function createHttp2Client(port) {
+      return http2.connect(`http://127.0.0.1:${port}`);
+    }
+
+    function closeHttp2(request, client, server, callback) {
+      if (typeof client.shutdown === "function") {
+        // this is the node v8.x way of closing the connections
+        request.destroy(http2.constants.NGHTTP2_NO_ERROR, () => {
+          client.shutdown({}, () => {
+            server.close(() => {
+              callback();
+            });
+          });
+        });
+      } else {
+        // this is the node v9.x onwards way of closing the connections
+        request.close(http2.constants.NGHTTP2_NO_ERROR, () => {
+          client.close(() => {
+            // force existing connections to time out after 1ms.
+            // this is done to force the server to close in some cases where it wouldn't do it otherwise.
+            server.close(() => {
+              callback();
+            });
+          });
+        });
+      }
+    }
+
     it("should work with http2 server", (done) => {
       const server = createHttp2Server({ threshold: 0 }, (req, res) => {
         res.setHeader("Content-Type", "text/plain");
@@ -811,120 +928,3 @@ describe("compression()", () => {
     });
   });
 });
-
-function createServer(opts, fn) {
-  const _compression = compression(opts);
-  return http.createServer((req, res) => {
-    _compression(req, res, (err) => {
-      if (err) {
-        res.statusCode = err.status || 500;
-        res.end(err.message);
-        return;
-      }
-
-      fn(req, res);
-    });
-  });
-}
-
-function createHttp2Server(opts, fn) {
-  const _compression = compression(opts);
-  const server = http2.createServer((req, res) => {
-    _compression(req, res, (err) => {
-      if (err) {
-        res.statusCode = err.status || 500;
-        res.end(err.message);
-        return;
-      }
-
-      fn(req, res);
-    });
-  });
-  server.listen(0, "127.0.0.1");
-  return server;
-}
-
-function createHttp2Client(port) {
-  return http2.connect(`http://127.0.0.1:${port}`);
-}
-
-function closeHttp2(request, client, server, callback) {
-  if (typeof client.shutdown === "function") {
-    // this is the node v8.x way of closing the connections
-    request.destroy(http2.constants.NGHTTP2_NO_ERROR, () => {
-      client.shutdown({}, () => {
-        server.close(() => {
-          callback();
-        });
-      });
-    });
-  } else {
-    // this is the node v9.x onwards way of closing the connections
-    request.close(http2.constants.NGHTTP2_NO_ERROR, () => {
-      client.close(() => {
-        // force existing connections to time out after 1ms.
-        // this is done to force the server to close in some cases where it wouldn't do it otherwise.
-        server.close(() => {
-          callback();
-        });
-      });
-    });
-  }
-}
-
-function shouldHaveBodyLength(length) {
-  return (res) => {
-    assert.strictEqual(
-      res.text.length,
-      length,
-      `should have body length of ${length}`
-    );
-  };
-}
-
-function shouldNotHaveHeader(header) {
-  return (res) => {
-    assert.ok(
-      !(header.toLowerCase() in res.headers),
-      `should not have header ${header}`
-    );
-  };
-}
-
-function writeAndFlush(stream, count, buf) {
-  let writes = 0;
-
-  return () => {
-    if (writes++ >= count) return;
-    if (writes === count) {
-      stream.end(buf);
-      return;
-    }
-    stream.write(buf);
-    stream.flush();
-  };
-}
-
-function unchunk(encoding, onchunk, onend) {
-  return (res) => {
-    let stream;
-
-    assert.strictEqual(res.headers["content-encoding"], encoding);
-
-    switch (encoding) {
-      case "deflate":
-        stream = res.pipe(zlib.createInflate());
-        break;
-      case "gzip":
-        stream = res.pipe(zlib.createGunzip());
-        break;
-      case "br":
-        stream = res.pipe(zlib.createBrotliDecompress());
-        break;
-      default:
-    }
-
-    stream.on("data", onchunk);
-    stream.on("end", onend);
-  };
-}
