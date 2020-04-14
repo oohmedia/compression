@@ -405,10 +405,10 @@ describe("compression()", () => {
       return http2.connect(`http://127.0.0.1:${port}`);
     }
 
-    function closeHttp2(request, client, server, callback) {
+    function closeHttp2(req, client, server, callback) {
       if (typeof client.shutdown === "function") {
         // this is the node v8.x way of closing the connections
-        request.destroy(http2.constants.NGHTTP2_NO_ERROR, () => {
+        req.destroy(http2.constants.NGHTTP2_NO_ERROR, () => {
           client.shutdown({}, () => {
             server.close(() => {
               callback();
@@ -417,7 +417,7 @@ describe("compression()", () => {
         });
       } else {
         // this is the node v9.x onwards way of closing the connections
-        request.close(http2.constants.NGHTTP2_NO_ERROR, () => {
+        req.close(http2.constants.NGHTTP2_NO_ERROR, () => {
           client.close(() => {
             // force existing connections to time out after 1ms.
             // this is done to force the server to close in some cases where it wouldn't do it otherwise.
@@ -436,19 +436,19 @@ describe("compression()", () => {
       });
       server.on("listening", () => {
         const client = createHttp2Client(server.address().port);
-        const request = client.request({
+        const req = client.request({
           "Accept-Encoding": "gzip",
         });
-        request.on("response", (headers) => {
+        req.on("response", (headers) => {
           assert.strictEqual(headers["content-encoding"], "gzip");
         });
-        request.on("data", () => {
+        req.on("data", () => {
           // no-op without which the request will stay open and cause a test timeout
         });
-        request.on("end", () => {
-          closeHttp2(request, client, server, done);
+        req.on("end", () => {
+          closeHttp2(req, client, server, done);
         });
-        request.end();
+        req.end();
       });
     });
   });

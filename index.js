@@ -20,6 +20,8 @@ const onHeaders = require("on-headers");
 const vary = require("vary");
 const zlib = require("zlib");
 
+const defaultThreshold = 1024;
+
 const toBuffer = (chunk, encoding) =>
   Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, encoding);
 
@@ -54,13 +56,6 @@ const shouldTransform = (req, res) => {
 };
 
 /**
- * Module variables.
- * @private
- */
-
-const defaultThreshold = 1024;
-
-/**
  * Compress response data with gzip / deflate.
  *
  * @param {Object} [options]
@@ -68,7 +63,7 @@ const defaultThreshold = 1024;
  * @public
  */
 
-function compression(options) {
+function compressionMiddleware(options) {
   const BROTLI_DEFAULT_QUALITY = 4;
 
   const opts = options || {};
@@ -88,6 +83,10 @@ function compression(options) {
   if (threshold === null) {
     threshold = defaultThreshold;
   }
+
+  const filterBrotliIfNotSupported = (encoding) =>
+    encoding !== "br" || brotliEnabled;
+  const checkEncoding = (accept) => (encoding) => accept.encoding(encoding);
 
   return function compression(req, res, next) {
     const addListeners = (stream, on, listeners) =>
@@ -211,9 +210,6 @@ function compression(options) {
       }
 
       // compression method
-      const filterBrotliIfNotSupported = (encoding) =>
-        encoding !== "br" || brotliEnabled;
-      const checkEncoding = (accept) => (encoding) => accept.encoding(encoding);
       const accept = accepts(req);
       const method =
         ["br", "gzip", "deflate"]
@@ -268,5 +264,5 @@ function compression(options) {
   };
 }
 
-module.exports = compression;
+module.exports = compressionMiddleware;
 module.exports.filter = shouldCompress;
