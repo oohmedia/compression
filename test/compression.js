@@ -504,7 +504,7 @@ describe('compression()', function () {
 
   describe('when "Accept-Encoding: br"', function () {
     it('should respond with br', function (done) {
-      var server = createServer({ threshold: 0, brotli: { enabled: true } }, function (req, res) {
+      var server = createServer({ threshold: 0 }, function (req, res) {
         res.setHeader('Content-Type', 'text/plain')
         res.end('hello, world')
       })
@@ -523,7 +523,7 @@ describe('compression()', function () {
       }
     })
     it('should respond with br, gzip', function (done) {
-      var server = createServer({ threshold: 0, brotli: { enabled: true } }, function (req, res) {
+      var server = createServer({ threshold: 0 }, function (req, res) {
         res.setHeader('Content-Type', 'text/plain')
         res.end('hello, world')
       })
@@ -563,7 +563,7 @@ describe('compression()', function () {
 
   describe('when "Accept-Encoding: gzip, deflate, br"', function () {
     it('should respond with br', function (done) {
-      var server = createServer({ threshold: 0, brotli: { enabled: true } }, function (req, res) {
+      var server = createServer({ threshold: 0 }, function (req, res) {
         res.setHeader('Content-Type', 'text/plain')
         res.end('hello, world')
       })
