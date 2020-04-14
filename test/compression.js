@@ -3,19 +3,9 @@ var assert = require('assert')
 var bytes = require('bytes')
 var crypto = require('crypto')
 var http = require('http')
+var http2 = require('http2')
 var request = require('supertest')
 var zlib = require('zlib')
-
-var describeHttp2 = describe.skip
-try {
-  var http2 = require('http2')
-  describeHttp2 = describe
-} catch (err) {
-  if (err) {
-    console.log('http2 tests disabled.')
-  }
-}
-
 var compression = require('..')
 
 describe('compression()', function () {
@@ -316,7 +306,7 @@ describe('compression()', function () {
       .expect(200, done)
   })
 
-  describeHttp2('http2', function () {
+  describe('http2', function () {
     it('should work with http2 server', function (done) {
       var server = createHttp2Server({ threshold: 0 }, function (req, res) {
         res.setHeader('Content-Type', 'text/plain')
