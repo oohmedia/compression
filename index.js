@@ -86,7 +86,7 @@ function compression (options) {
       }
 
       if (!this._header) {
-        this._implicitHeader()
+        this.writeHead(this.statusCode)
       }
 
       return stream
@@ -105,7 +105,7 @@ function compression (options) {
           length = chunkLength(chunk, encoding)
         }
 
-        this._implicitHeader()
+        this.writeHead(this.statusCode)
       }
 
       if (!stream) {
