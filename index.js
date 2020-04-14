@@ -17,9 +17,6 @@ const zlib = require('zlib');
 
 const defaultThreshold = 1024;
 
-const toBuffer = (chunk, encoding) =>
-  Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, encoding);
-
 const shouldCompress = (req, res) => {
   const type = res.getHeader('Content-Type');
 
@@ -97,7 +94,7 @@ function compressionMiddleware(options) {
       }
 
       return stream
-        ? stream.write(toBuffer(chunk, encoding))
+        ? stream.write(chunk, encoding)
         : origWrite.call(this, chunk, encoding);
     };
 
@@ -122,8 +119,7 @@ function compressionMiddleware(options) {
       // mark ended
       ended = true;
 
-      // write Buffer for Node.js 0.8
-      return chunk ? stream.end(toBuffer(chunk, encoding)) : stream.end();
+      return chunk ? stream.end(chunk, encoding) : stream.end();
     };
 
     res.on = function on(type, listener) {
