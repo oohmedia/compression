@@ -176,7 +176,7 @@ describe("compression()", function () {
     crypto.pseudoRandomBytes(1024 * 128, function (err, chunk) {
       if (err) return done(err);
       buf = chunk;
-      pressure();
+      return pressure();
     });
 
     function pressure() {
@@ -240,7 +240,7 @@ describe("compression()", function () {
     crypto.pseudoRandomBytes(1024 * 128, function (err, chunk) {
       if (err) return done(err);
       buf = chunk;
-      pressure();
+      return pressure();
     });
 
     function pressure() {
@@ -707,6 +707,7 @@ describe("compression()", function () {
           unchunk("gzip", onchunk, function (err) {
             if (err) return done(err);
             server.close(done);
+            return undefined;
           })
         )
         .end();
@@ -736,6 +737,7 @@ describe("compression()", function () {
           unchunk("gzip", onchunk, function (err) {
             if (err) return done(err);
             server.close(done);
+            return undefined;
           })
         )
         .end();
@@ -765,6 +767,7 @@ describe("compression()", function () {
           unchunk("deflate", onchunk, function (err) {
             if (err) return done(err);
             server.close(done);
+            return undefined;
           })
         )
         .end();
@@ -798,6 +801,7 @@ describe("compression()", function () {
             unchunk("br", onchunk, function (err) {
               if (err) return done(err);
               server.close(done);
+              return undefined;
             })
           )
           .end();
@@ -892,7 +896,10 @@ function writeAndFlush(stream, count, buf) {
 
   return function () {
     if (writes++ >= count) return;
-    if (writes === count) return stream.end(buf);
+    if (writes === count) {
+      stream.end(buf);
+      return;
+    }
     stream.write(buf);
     stream.flush();
   };
