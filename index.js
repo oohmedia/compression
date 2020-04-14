@@ -183,14 +183,9 @@ function compression(options) {
       }
 
       // compression method
-      const filterBrotliIfNotSupported = function (encoding) {
-        return encoding !== "br" || brotliEnabled;
-      };
-      const checkEncoding = function (accept) {
-        return function (encoding) {
-          return accept.encoding(encoding);
-        };
-      };
+      const filterBrotliIfNotSupported = (encoding) =>
+        encoding !== "br" || brotliEnabled;
+      const checkEncoding = (accept) => (encoding) => accept.encoding(encoding);
       const accept = accepts(req);
       const method =
         ["br", "gzip", "deflate"]
