@@ -29,13 +29,15 @@ function writeAndFlush(stream, count, buf) {
   let writes = 0;
 
   return () => {
-    if (writes++ >= count) return;
     if (writes === count) {
       stream.end(buf);
+    }
+    if (writes >= count) {
       return;
     }
     stream.write(buf);
     stream.flush();
+    writes += 1
   };
 }
 
@@ -810,7 +812,7 @@ describe("compression()", () => {
       });
 
       function onchunk(chunk) {
-        assert.ok(chunks++ < 2);
+        assert.ok((chunks += 1 < 2));
         assert.strictEqual(chunk.length, 1024);
         next();
       }
@@ -840,7 +842,7 @@ describe("compression()", () => {
       });
 
       function onchunk(chunk) {
-        assert.ok(chunks++ < 20);
+        assert.ok((chunks += 1 < 20));
         assert.strictEqual(chunk.toString(), "..");
         next();
       }
@@ -870,7 +872,7 @@ describe("compression()", () => {
       });
 
       function onchunk(chunk) {
-        assert.ok(chunks++ < 20);
+        assert.ok((chunks += 1 < 20));
         assert.strictEqual(chunk.toString(), "..");
         next();
       }
@@ -903,7 +905,7 @@ describe("compression()", () => {
       );
 
       function onchunk(chunk) {
-        assert.ok(chunks++ < 20);
+        assert.ok((chunks += 1 < 20));
         assert.strictEqual(chunk.toString(), "..");
         next();
       }

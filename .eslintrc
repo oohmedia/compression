@@ -12,7 +12,6 @@
     "es6": true
   },
   "rules": {
-    "no-plusplus": 0,
     "no-underscore-dangle": 0
   }
 }
