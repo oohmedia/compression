@@ -15,7 +15,6 @@
  */
 
 var accepts = require('accepts')
-var Buffer = require('safe-buffer').Buffer
 var bytes = require('bytes')
 var compressible = require('compressible')
 var debug = require('debug')('compression')
