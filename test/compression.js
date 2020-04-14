@@ -37,7 +37,7 @@ function writeAndFlush(stream, count, buf) {
     }
     stream.write(buf);
     stream.flush();
-    writes += 1
+    writes += 1;
   };
 }
 
@@ -66,9 +66,9 @@ function unchunk(encoding, onchunk, onend) {
 }
 
 function createServer(opts, fn) {
-  const _compression = compression(opts);
+  const c = compression(opts);
   return http.createServer((req, res) => {
-    _compression(req, res, (err) => {
+    c(req, res, (err) => {
       if (err) {
         res.statusCode = err.status || 500;
         res.end(err.message);
@@ -387,9 +387,9 @@ describe("compression()", () => {
 
   describe("http2", () => {
     function createHttp2Server(opts, fn) {
-      const _compression = compression(opts);
+      const c = compression(opts);
       const server = http2.createServer((req, res) => {
-        _compression(req, res, (err) => {
+        c(req, res, (err) => {
           if (err) {
             res.statusCode = err.status || 500;
             res.end(err.message);

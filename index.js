@@ -97,9 +97,9 @@ function compressionMiddleware(options) {
     let listeners = [];
     let stream;
 
-    const _end = res.end;
-    const _on = res.on;
-    const _write = res.write;
+    const origEnd = res.end;
+    const origOn = res.on;
+    const origWrite = res.write;
 
     // flush
     res.flush = function flush() {
@@ -115,13 +115,13 @@ function compressionMiddleware(options) {
         return false;
       }
 
-      if (!this._header) {
+      if (!this.headersSent) {
         this.writeHead(this.statusCode);
       }
 
       return stream
         ? stream.write(toBuffer(chunk, encoding))
-        : _write.call(this, chunk, encoding);
+        : origWrite.call(this, chunk, encoding);
     };
 
     res.end = function end(chunk, encoding) {
@@ -129,7 +129,7 @@ function compressionMiddleware(options) {
         return false;
       }
 
-      if (!this._header) {
+      if (!this.headersSent) {
         // estimate the length
         if (!this.getHeader("Content-Length")) {
           length = chunkLength(chunk, encoding);
@@ -139,7 +139,7 @@ function compressionMiddleware(options) {
       }
 
       if (!stream) {
-        return _end.call(this, chunk, encoding);
+        return origEnd.call(this, chunk, encoding);
       }
 
       // mark ended
@@ -151,7 +151,7 @@ function compressionMiddleware(options) {
 
     res.on = function on(type, listener) {
       if (!listeners || type !== "drain") {
-        return _on.call(this, type, listener);
+        return origOn.call(this, type, listener);
       }
 
       if (stream) {
@@ -166,7 +166,7 @@ function compressionMiddleware(options) {
 
     function nocompress(msg) {
       debug("no compression: %s", msg);
-      addListeners(res, _on, listeners);
+      addListeners(res, origOn, listeners);
       listeners = null;
     }
 
@@ -246,16 +246,16 @@ function compressionMiddleware(options) {
 
       // compression
       stream.on("data", function onStreamData(chunk) {
-        if (_write.call(res, chunk) === false) {
+        if (origWrite.call(res, chunk) === false) {
           stream.pause();
         }
       });
 
       stream.on("end", function onStreamEnd() {
-        _end.call(res);
+        origEnd.call(res);
       });
 
-      _on.call(res, "drain", function onResponseDrain() {
+      origOn.call(res, "drain", function onResponseDrain() {
         stream.resume();
       });
     });
