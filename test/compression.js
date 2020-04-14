@@ -914,6 +914,7 @@ function unchunk(encoding, onchunk, onend) {
       case "br":
         stream = res.pipe(zlib.createBrotliDecompress());
         break;
+      default:
     }
 
     stream.on("data", onchunk);

@@ -215,6 +215,7 @@ function compression(options) {
         case "deflate":
           stream = zlib.createDeflate(opts);
           break;
+        default:
       }
 
       // add buffered listeners to stream
