@@ -7,18 +7,13 @@
  * MIT Licensed
  */
 
-/**
- * Module dependencies.
- * @private
- */
-
-const accepts = require("accepts");
-const bytes = require("bytes");
-const compressible = require("compressible");
-const debug = require("debug")("compression");
-const onHeaders = require("on-headers");
-const vary = require("vary");
-const zlib = require("zlib");
+const accepts = require('accepts');
+const bytes = require('bytes');
+const compressible = require('compressible');
+const debug = require('debug')('compression');
+const onHeaders = require('on-headers');
+const vary = require('vary');
+const zlib = require('zlib');
 
 const defaultThreshold = 1024;
 
@@ -26,10 +21,10 @@ const toBuffer = (chunk, encoding) =>
   Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, encoding);
 
 const shouldCompress = (req, res) => {
-  const type = res.getHeader("Content-Type");
+  const type = res.getHeader('Content-Type');
 
   if (type === undefined || !compressible(type)) {
-    debug("%s not compressible", type);
+    debug('%s not compressible', type);
     return false;
   }
 
@@ -41,27 +36,17 @@ const chunkLength = (chunk, encoding) => {
     return 0;
   }
 
-  return Buffer.isBuffer(chunk)
-    ? chunk.length
-    : Buffer.byteLength(chunk, encoding);
+  return Buffer.isBuffer(chunk) ? chunk.length : Buffer.byteLength(chunk, encoding);
 };
 
 const shouldTransform = (req, res) => {
   const cacheControlNoTransformRegExp = /(?:^|,)\s*?no-transform\s*?(?:,|$)/;
-  const cacheControl = res.getHeader("Cache-Control");
+  const cacheControl = res.getHeader('Cache-Control');
 
   // Don't compress for Cache-Control: no-transform
   // https://tools.ietf.org/html/rfc7234#section-5.2.2.4
   return !cacheControl || !cacheControlNoTransformRegExp.test(cacheControl);
 };
-
-/**
- * Compress response data with gzip / deflate.
- *
- * @param {Object} [options]
- * @return {Function} middleware
- * @public
- */
 
 function compressionMiddleware(options) {
   const BROTLI_DEFAULT_QUALITY = 4;
@@ -77,15 +62,14 @@ function compressionMiddleware(options) {
     params: { [zlib.constants.BROTLI_PARAM_QUALITY]: BROTLI_DEFAULT_QUALITY },
   };
   let threshold = bytes.parse(opts.threshold);
-  const supportsBrotli = typeof zlib.createBrotliCompress === "function";
+  const supportsBrotli = typeof zlib.createBrotliCompress === 'function';
   const brotliEnabled = brotli.enabled && supportsBrotli;
 
   if (threshold === null) {
     threshold = defaultThreshold;
   }
 
-  const filterBrotliIfNotSupported = (encoding) =>
-    encoding !== "br" || brotliEnabled;
+  const filterBrotliIfNotSupported = (encoding) => encoding !== 'br' || brotliEnabled;
   const checkEncoding = (accept) => (encoding) => accept.encoding(encoding);
 
   return function compression(req, res, next) {
@@ -101,14 +85,7 @@ function compressionMiddleware(options) {
     const origOn = res.on;
     const origWrite = res.write;
 
-    // flush
-    res.flush = function flush() {
-      if (stream) {
-        stream.flush();
-      }
-    };
-
-    // proxy
+    res.flush = () => stream && stream.flush();
 
     res.write = function write(chunk, encoding) {
       if (ended) {
@@ -131,7 +108,7 @@ function compressionMiddleware(options) {
 
       if (!this.headersSent) {
         // estimate the length
-        if (!this.getHeader("Content-Length")) {
+        if (!this.getHeader('Content-Length')) {
           length = chunkLength(chunk, encoding);
         }
 
@@ -150,7 +127,7 @@ function compressionMiddleware(options) {
     };
 
     res.on = function on(type, listener) {
-      if (!listeners || type !== "drain") {
+      if (!listeners || type !== 'drain') {
         return origOn.call(this, type, listener);
       }
 
@@ -164,74 +141,71 @@ function compressionMiddleware(options) {
       return this;
     };
 
-    function nocompress(msg) {
-      debug("no compression: %s", msg);
-      addListeners(res, origOn, listeners);
-      listeners = null;
-    }
+    onHeaders(res, () => {
+      const noCompress = (msg) => {
+        debug('no compression: %s', msg);
+        addListeners(res, origOn, listeners);
+        listeners = null;
+      };
 
-    onHeaders(res, function onResponseHeaders() {
       // determine if request is filtered
       if (!filter(req, res)) {
-        nocompress("filtered");
+        noCompress('filtered');
         return;
       }
 
       // determine if the entity should be transformed
       if (!shouldTransform(req, res)) {
-        nocompress("no transform");
+        noCompress('no transform');
         return;
       }
 
       // vary
-      vary(res, "Accept-Encoding");
+      vary(res, 'Accept-Encoding');
 
       // content-length below threshold
-      if (
-        Number(res.getHeader("Content-Length")) < threshold ||
-        length < threshold
-      ) {
-        nocompress("size below threshold");
+      if (Number(res.getHeader('Content-Length')) < threshold || length < threshold) {
+        noCompress('size below threshold');
         return;
       }
 
-      const encoding = res.getHeader("Content-Encoding") || "identity";
+      const encoding = res.getHeader('Content-Encoding') || 'identity';
 
       // already encoded
-      if (encoding !== "identity") {
-        nocompress("already encoded");
+      if (encoding !== 'identity') {
+        noCompress('already encoded');
         return;
       }
 
       // head
-      if (req.method === "HEAD") {
-        nocompress("HEAD request");
+      if (req.method === 'HEAD') {
+        noCompress('HEAD request');
         return;
       }
 
       // compression method
       const accept = accepts(req);
       const method =
-        ["br", "gzip", "deflate"]
+        ['br', 'gzip', 'deflate']
           .filter(filterBrotliIfNotSupported)
-          .filter(checkEncoding(accept))[0] || "identity";
+          .filter(checkEncoding(accept))[0] || 'identity';
 
       // negotiation failed
-      if (method === "identity") {
-        nocompress("not acceptable");
+      if (method === 'identity') {
+        noCompress('not acceptable');
         return;
       }
 
       // compression stream
-      debug("%s compression", method);
+      debug('%s compression', method);
       switch (method) {
-        case "br":
+        case 'br':
           stream = zlib.createBrotliCompress(brotliZlib);
           break;
-        case "gzip":
+        case 'gzip':
           stream = zlib.createGzip(opts);
           break;
-        case "deflate":
+        case 'deflate':
           stream = zlib.createDeflate(opts);
           break;
         default:
@@ -241,23 +215,18 @@ function compressionMiddleware(options) {
       addListeners(stream, stream.on, listeners);
 
       // header fields
-      res.setHeader("Content-Encoding", method);
-      res.removeHeader("Content-Length");
+      res.setHeader('Content-Encoding', method);
+      res.removeHeader('Content-Length');
 
       // compression
-      stream.on("data", function onStreamData(chunk) {
+      stream.on('data', (chunk) => {
         if (origWrite.call(res, chunk) === false) {
           stream.pause();
         }
       });
 
-      stream.on("end", function onStreamEnd() {
-        origEnd.call(res);
-      });
-
-      origOn.call(res, "drain", function onResponseDrain() {
-        stream.resume();
-      });
+      stream.on('end', () => origEnd.call(res));
+      origOn.call(res, 'drain', () => stream.resume());
     });
 
     next();

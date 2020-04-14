@@ -1,27 +1,20 @@
-const after = require("after");
-const assert = require("assert");
-const bytes = require("bytes");
-const crypto = require("crypto");
-const http = require("http");
-const http2 = require("http2");
-const request = require("supertest");
-const zlib = require("zlib");
-const compression = require("..");
+const after = require('after');
+const assert = require('assert');
+const bytes = require('bytes');
+const crypto = require('crypto');
+const http = require('http');
+const http2 = require('http2');
+const request = require('supertest');
+const zlib = require('zlib');
+const compression = require('..');
 
 const shouldHaveBodyLength = (length) => (res) => {
-  assert.strictEqual(
-    res.text.length,
-    length,
-    `should have body length of ${length}`
-  );
+  assert.strictEqual(res.text.length, length, `should have body length of ${length}`);
 };
 
 function shouldNotHaveHeader(header) {
   return (res) => {
-    assert.ok(
-      !(header.toLowerCase() in res.headers),
-      `should not have header ${header}`
-    );
+    assert.ok(!(header.toLowerCase() in res.headers), `should not have header ${header}`);
   };
 }
 
@@ -45,23 +38,23 @@ function unchunk(encoding, onchunk, onend) {
   return (res) => {
     let stream;
 
-    assert.strictEqual(res.headers["content-encoding"], encoding);
+    assert.strictEqual(res.headers['content-encoding'], encoding);
 
     switch (encoding) {
-      case "deflate":
+      case 'deflate':
         stream = res.pipe(zlib.createInflate());
         break;
-      case "gzip":
+      case 'gzip':
         stream = res.pipe(zlib.createGunzip());
         break;
-      case "br":
+      case 'br':
         stream = res.pipe(zlib.createBrotliDecompress());
         break;
       default:
     }
 
-    stream.on("data", onchunk);
-    stream.on("end", onend);
+    stream.on('data', onchunk);
+    stream.on('end', onend);
   };
 }
 
@@ -80,154 +73,151 @@ function createServer(opts, fn) {
   });
 }
 
-describe("compression()", () => {
-  it("should skip HEAD", (done) => {
+describe('compression()', () => {
+  it('should skip HEAD', (done) => {
     const server = createServer({ threshold: 0 }, (req, res) => {
-      res.setHeader("Content-Type", "text/plain");
-      res.end("hello, world");
+      res.setHeader('Content-Type', 'text/plain');
+      res.end('hello, world');
     });
 
     request(server)
-      .head("/")
-      .set("Accept-Encoding", "gzip")
-      .expect(shouldNotHaveHeader("Content-Encoding"))
+      .head('/')
+      .set('Accept-Encoding', 'gzip')
+      .expect(shouldNotHaveHeader('Content-Encoding'))
       .expect(200, done);
   });
 
-  it("should skip unknown accept-encoding", (done) => {
+  it('should skip unknown accept-encoding', (done) => {
     const server = createServer({ threshold: 0 }, (req, res) => {
-      res.setHeader("Content-Type", "text/plain");
-      res.end("hello, world");
+      res.setHeader('Content-Type', 'text/plain');
+      res.end('hello, world');
     });
 
     request(server)
-      .get("/")
-      .set("Accept-Encoding", "bogus")
-      .expect(shouldNotHaveHeader("Content-Encoding"))
+      .get('/')
+      .set('Accept-Encoding', 'bogus')
+      .expect(shouldNotHaveHeader('Content-Encoding'))
       .expect(200, done);
   });
 
-  it("should skip if content-encoding already set", (done) => {
+  it('should skip if content-encoding already set', (done) => {
     const server = createServer({ threshold: 0 }, (req, res) => {
-      res.setHeader("Content-Type", "text/plain");
-      res.setHeader("Content-Encoding", "x-custom");
-      res.end("hello, world");
+      res.setHeader('Content-Type', 'text/plain');
+      res.setHeader('Content-Encoding', 'x-custom');
+      res.end('hello, world');
     });
 
     request(server)
-      .get("/")
-      .set("Accept-Encoding", "gzip")
-      .expect("Content-Encoding", "x-custom")
-      .expect(200, "hello, world", done);
+      .get('/')
+      .set('Accept-Encoding', 'gzip')
+      .expect('Content-Encoding', 'x-custom')
+      .expect(200, 'hello, world', done);
   });
 
-  it("should set Vary", (done) => {
+  it('should set Vary', (done) => {
     const server = createServer({ threshold: 0 }, (req, res) => {
-      res.setHeader("Content-Type", "text/plain");
-      res.end("hello, world");
+      res.setHeader('Content-Type', 'text/plain');
+      res.end('hello, world');
     });
 
     request(server)
-      .get("/")
-      .set("Accept-Encoding", "gzip")
-      .expect("Content-Encoding", "gzip")
-      .expect("Vary", "Accept-Encoding", done);
+      .get('/')
+      .set('Accept-Encoding', 'gzip')
+      .expect('Content-Encoding', 'gzip')
+      .expect('Vary', 'Accept-Encoding', done);
   });
 
-  it("should set Vary even if Accept-Encoding is not set", (done) => {
+  it('should set Vary even if Accept-Encoding is not set', (done) => {
     const server = createServer({ threshold: 1000 }, (req, res) => {
-      res.setHeader("Content-Type", "text/plain");
-      res.end("hello, world");
+      res.setHeader('Content-Type', 'text/plain');
+      res.end('hello, world');
     });
 
     request(server)
-      .get("/")
-      .expect("Vary", "Accept-Encoding")
-      .expect(shouldNotHaveHeader("Content-Encoding"))
+      .get('/')
+      .expect('Vary', 'Accept-Encoding')
+      .expect(shouldNotHaveHeader('Content-Encoding'))
       .expect(200, done);
   });
 
-  it("should not set Vary if Content-Type does not pass filter", (done) => {
+  it('should not set Vary if Content-Type does not pass filter', (done) => {
     const server = createServer(null, (req, res) => {
-      res.setHeader("Content-Type", "image/jpeg");
+      res.setHeader('Content-Type', 'image/jpeg');
       res.end();
     });
 
+    request(server).get('/').expect(shouldNotHaveHeader('Vary')).expect(200, done);
+  });
+
+  it('should set Vary for HEAD request', (done) => {
+    const server = createServer({ threshold: 0 }, (req, res) => {
+      res.setHeader('Content-Type', 'text/plain');
+      res.end('hello, world');
+    });
+
     request(server)
-      .get("/")
-      .expect(shouldNotHaveHeader("Vary"))
+      .head('/')
+      .set('Accept-Encoding', 'gzip')
+      .expect('Vary', 'Accept-Encoding', done);
+  });
+
+  it('should transfer chunked', (done) => {
+    const server = createServer({ threshold: 0 }, (req, res) => {
+      res.setHeader('Content-Type', 'text/plain');
+      res.end('hello, world');
+    });
+
+    request(server)
+      .get('/')
+      .set('Accept-Encoding', 'gzip')
+      .expect('Transfer-Encoding', 'chunked', done);
+  });
+
+  it('should remove Content-Length for chunked', (done) => {
+    const server = createServer({ threshold: 0 }, (req, res) => {
+      res.setHeader('Content-Type', 'text/plain');
+      res.end('hello, world');
+    });
+
+    request(server)
+      .get('/')
+      .expect('Content-Encoding', 'gzip')
+      .expect(shouldNotHaveHeader('Content-Length'))
       .expect(200, done);
   });
 
-  it("should set Vary for HEAD request", (done) => {
+  it('should work with encoding arguments', (done) => {
     const server = createServer({ threshold: 0 }, (req, res) => {
-      res.setHeader("Content-Type", "text/plain");
-      res.end("hello, world");
+      res.setHeader('Content-Type', 'text/plain');
+      res.write('hello, ', 'utf8');
+      res.end('world', 'utf8');
     });
 
     request(server)
-      .head("/")
-      .set("Accept-Encoding", "gzip")
-      .expect("Vary", "Accept-Encoding", done);
+      .get('/')
+      .set('Accept-Encoding', 'gzip')
+      .expect('Transfer-Encoding', 'chunked')
+      .expect(200, 'hello, world', done);
   });
 
-  it("should transfer chunked", (done) => {
-    const server = createServer({ threshold: 0 }, (req, res) => {
-      res.setHeader("Content-Type", "text/plain");
-      res.end("hello, world");
-    });
-
-    request(server)
-      .get("/")
-      .set("Accept-Encoding", "gzip")
-      .expect("Transfer-Encoding", "chunked", done);
-  });
-
-  it("should remove Content-Length for chunked", (done) => {
-    const server = createServer({ threshold: 0 }, (req, res) => {
-      res.setHeader("Content-Type", "text/plain");
-      res.end("hello, world");
-    });
-
-    request(server)
-      .get("/")
-      .expect("Content-Encoding", "gzip")
-      .expect(shouldNotHaveHeader("Content-Length"))
-      .expect(200, done);
-  });
-
-  it("should work with encoding arguments", (done) => {
-    const server = createServer({ threshold: 0 }, (req, res) => {
-      res.setHeader("Content-Type", "text/plain");
-      res.write("hello, ", "utf8");
-      res.end("world", "utf8");
-    });
-
-    request(server)
-      .get("/")
-      .set("Accept-Encoding", "gzip")
-      .expect("Transfer-Encoding", "chunked")
-      .expect(200, "hello, world", done);
-  });
-
-  it("should allow writing after close", (done) => {
+  it('should allow writing after close', (done) => {
     // UGH
     const server = createServer({ threshold: 0 }, (req, res) => {
-      res.setHeader("Content-Type", "text/plain");
-      res.once("close", () => {
-        res.write("hello, ");
-        res.end("world");
+      res.setHeader('Content-Type', 'text/plain');
+      res.once('close', () => {
+        res.write('hello, ');
+        res.end('world');
         done();
       });
       res.destroy();
     });
 
     request(server)
-      .get("/")
+      .get('/')
       .end(() => {});
   });
 
-  it("should back-pressure when compressed", (done) => {
+  it('should back-pressure when compressed', (done) => {
     let buf;
     const cb = after(2, done);
     let client;
@@ -243,24 +233,24 @@ describe("compression()", () => {
         resp.flush();
       }
 
-      resp.on("drain", () => {
-        assert.ok(resp.write("end"));
+      resp.on('drain', () => {
+        assert.ok(resp.write('end'));
         resp.end();
       });
 
-      resp.on("finish", cb);
+      resp.on('finish', cb);
       client.resume();
     }
 
     const server = createServer({ threshold: 0 }, (req, res) => {
       resp = res;
 
-      res.on("drain", () => {
+      res.on('drain', () => {
         drained = true;
       });
 
-      res.setHeader("Content-Type", "text/plain");
-      res.write("start");
+      res.setHeader('Content-Type', 'text/plain');
+      res.write('start');
       pressure();
     });
 
@@ -271,13 +261,13 @@ describe("compression()", () => {
     });
 
     request(server)
-      .get("/")
+      .get('/')
       .request()
-      .on("response", (res) => {
+      .on('response', (res) => {
         client = res;
-        assert.strictEqual(res.headers["content-encoding"], "gzip");
+        assert.strictEqual(res.headers['content-encoding'], 'gzip');
         res.pause();
-        res.on("end", () => {
+        res.on('end', () => {
           server.close(cb);
         });
         pressure();
@@ -285,7 +275,7 @@ describe("compression()", () => {
       .end();
   });
 
-  it("should back-pressure when uncompressed", (done) => {
+  it('should back-pressure when uncompressed', (done) => {
     let buf;
     const cb = after(2, done);
     let client;
@@ -299,12 +289,12 @@ describe("compression()", () => {
         resp.flush();
       }
 
-      resp.on("drain", () => {
+      resp.on('drain', () => {
         assert.ok(drained);
-        assert.ok(resp.write("end"));
+        assert.ok(resp.write('end'));
         resp.end();
       });
-      resp.on("finish", cb);
+      resp.on('finish', cb);
       client.resume();
     }
 
@@ -317,12 +307,12 @@ describe("compression()", () => {
       (req, res) => {
         resp = res;
 
-        res.on("drain", () => {
+        res.on('drain', () => {
           drained = true;
         });
 
-        res.setHeader("Content-Type", "text/plain");
-        res.write("start");
+        res.setHeader('Content-Type', 'text/plain');
+        res.write('start');
         pressure();
       }
     );
@@ -334,13 +324,13 @@ describe("compression()", () => {
     });
 
     request(server)
-      .get("/")
+      .get('/')
       .request()
-      .on("response", (res) => {
+      .on('response', (res) => {
         client = res;
-        shouldNotHaveHeader("Content-Encoding")(res);
+        shouldNotHaveHeader('Content-Encoding')(res);
         res.pause();
-        res.on("end", () => {
+        res.on('end', () => {
           server.close(cb);
         });
         pressure();
@@ -348,28 +338,28 @@ describe("compression()", () => {
       .end();
   });
 
-  it("should transfer large bodies", (done) => {
-    const len = bytes("1mb");
-    const buf = Buffer.alloc(len, ".");
+  it('should transfer large bodies', (done) => {
+    const len = bytes('1mb');
+    const buf = Buffer.alloc(len, '.');
     const server = createServer({ threshold: 0 }, (req, res) => {
-      res.setHeader("Content-Type", "text/plain");
+      res.setHeader('Content-Type', 'text/plain');
       res.end(buf);
     });
 
     request(server)
-      .get("/")
-      .set("Accept-Encoding", "gzip")
-      .expect("Transfer-Encoding", "chunked")
-      .expect("Content-Encoding", "gzip")
+      .get('/')
+      .set('Accept-Encoding', 'gzip')
+      .expect('Transfer-Encoding', 'chunked')
+      .expect('Content-Encoding', 'gzip')
       .expect(shouldHaveBodyLength(len))
       .expect(200, buf.toString(), done);
   });
 
-  it("should transfer large bodies with multiple writes", (done) => {
-    const len = bytes("40kb");
-    const buf = Buffer.alloc(len, ".");
+  it('should transfer large bodies with multiple writes', (done) => {
+    const len = bytes('40kb');
+    const buf = Buffer.alloc(len, '.');
     const server = createServer({ threshold: 0 }, (req, res) => {
-      res.setHeader("Content-Type", "text/plain");
+      res.setHeader('Content-Type', 'text/plain');
       res.write(buf);
       res.write(buf);
       res.write(buf);
@@ -377,15 +367,15 @@ describe("compression()", () => {
     });
 
     request(server)
-      .get("/")
-      .set("Accept-Encoding", "gzip")
-      .expect("Transfer-Encoding", "chunked")
-      .expect("Content-Encoding", "gzip")
+      .get('/')
+      .set('Accept-Encoding', 'gzip')
+      .expect('Transfer-Encoding', 'chunked')
+      .expect('Content-Encoding', 'gzip')
       .expect(shouldHaveBodyLength(len * 4))
       .expect(200, done);
   });
 
-  describe("http2", () => {
+  describe('http2', () => {
     function createHttp2Server(opts, fn) {
       const c = compression(opts);
       const server = http2.createServer((req, res) => {
@@ -399,7 +389,7 @@ describe("compression()", () => {
           fn(req, res);
         });
       });
-      server.listen(0, "127.0.0.1");
+      server.listen(0, '127.0.0.1');
       return server;
     }
 
@@ -408,7 +398,7 @@ describe("compression()", () => {
     }
 
     function closeHttp2(req, client, server, callback) {
-      if (typeof client.shutdown === "function") {
+      if (typeof client.shutdown === 'function') {
         // this is the node v8.x way of closing the connections
         req.destroy(http2.constants.NGHTTP2_NO_ERROR, () => {
           client.shutdown({}, () => {
@@ -431,23 +421,23 @@ describe("compression()", () => {
       }
     }
 
-    it("should work with http2 server", (done) => {
+    it('should work with http2 server', (done) => {
       const server = createHttp2Server({ threshold: 0 }, (req, res) => {
-        res.setHeader("Content-Type", "text/plain");
-        res.end("hello, world");
+        res.setHeader('Content-Type', 'text/plain');
+        res.end('hello, world');
       });
-      server.on("listening", () => {
+      server.on('listening', () => {
         const client = createHttp2Client(server.address().port);
         const req = client.request({
-          "Accept-Encoding": "gzip",
+          'Accept-Encoding': 'gzip',
         });
-        req.on("response", (headers) => {
-          assert.strictEqual(headers["content-encoding"], "gzip");
+        req.on('response', (headers) => {
+          assert.strictEqual(headers['content-encoding'], 'gzip');
         });
-        req.on("data", () => {
+        req.on('data', () => {
           // no-op without which the request will stay open and cause a test timeout
         });
-        req.on("end", () => {
+        req.on('end', () => {
           closeHttp2(req, client, server, done);
         });
         req.end();
@@ -455,70 +445,70 @@ describe("compression()", () => {
     });
   });
 
-  describe("threshold", () => {
-    it("should not compress responses below the threshold size", (done) => {
-      const server = createServer({ threshold: "1kb" }, (req, res) => {
-        res.setHeader("Content-Type", "text/plain");
-        res.setHeader("Content-Length", "12");
-        res.end("hello, world");
+  describe('threshold', () => {
+    it('should not compress responses below the threshold size', (done) => {
+      const server = createServer({ threshold: '1kb' }, (req, res) => {
+        res.setHeader('Content-Type', 'text/plain');
+        res.setHeader('Content-Length', '12');
+        res.end('hello, world');
       });
 
       request(server)
-        .get("/")
-        .set("Accept-Encoding", "gzip")
-        .expect(shouldNotHaveHeader("Content-Encoding"))
+        .get('/')
+        .set('Accept-Encoding', 'gzip')
+        .expect(shouldNotHaveHeader('Content-Encoding'))
         .expect(200, done);
     });
 
-    it("should compress responses above the threshold size", (done) => {
-      const server = createServer({ threshold: "1kb" }, (req, res) => {
-        res.setHeader("Content-Type", "text/plain");
-        res.setHeader("Content-Length", "2048");
+    it('should compress responses above the threshold size', (done) => {
+      const server = createServer({ threshold: '1kb' }, (req, res) => {
+        res.setHeader('Content-Type', 'text/plain');
+        res.setHeader('Content-Length', '2048');
         res.end(Buffer.alloc(2048));
       });
 
       request(server)
-        .get("/")
-        .set("Accept-Encoding", "gzip")
-        .expect("Content-Encoding", "gzip", done);
+        .get('/')
+        .set('Accept-Encoding', 'gzip')
+        .expect('Content-Encoding', 'gzip', done);
     });
 
-    it("should compress when streaming without a content-length", (done) => {
-      const server = createServer({ threshold: "1kb" }, (req, res) => {
-        res.setHeader("Content-Type", "text/plain");
-        res.write("hello, ");
+    it('should compress when streaming without a content-length', (done) => {
+      const server = createServer({ threshold: '1kb' }, (req, res) => {
+        res.setHeader('Content-Type', 'text/plain');
+        res.write('hello, ');
         setTimeout(() => {
-          res.end("world");
+          res.end('world');
         }, 10);
       });
 
       request(server)
-        .get("/")
-        .set("Accept-Encoding", "gzip")
-        .expect("Content-Encoding", "gzip", done);
+        .get('/')
+        .set('Accept-Encoding', 'gzip')
+        .expect('Content-Encoding', 'gzip', done);
     });
 
-    it("should not compress when streaming and content-length is lower than threshold", (done) => {
-      const server = createServer({ threshold: "1kb" }, (req, res) => {
-        res.setHeader("Content-Type", "text/plain");
-        res.setHeader("Content-Length", "12");
-        res.write("hello, ");
+    it('should not compress when streaming and content-length is lower than threshold', (done) => {
+      const server = createServer({ threshold: '1kb' }, (req, res) => {
+        res.setHeader('Content-Type', 'text/plain');
+        res.setHeader('Content-Length', '12');
+        res.write('hello, ');
         setTimeout(() => {
-          res.end("world");
+          res.end('world');
         }, 10);
       });
 
       request(server)
-        .get("/")
-        .set("Accept-Encoding", "gzip")
-        .expect(shouldNotHaveHeader("Content-Encoding"))
+        .get('/')
+        .set('Accept-Encoding', 'gzip')
+        .expect(shouldNotHaveHeader('Content-Encoding'))
         .expect(200, done);
     });
 
-    it("should compress when streaming and content-length is larger than threshold", (done) => {
-      const server = createServer({ threshold: "1kb" }, (req, res) => {
-        res.setHeader("Content-Type", "text/plain");
-        res.setHeader("Content-Length", "2048");
+    it('should compress when streaming and content-length is larger than threshold', (done) => {
+      const server = createServer({ threshold: '1kb' }, (req, res) => {
+        res.setHeader('Content-Type', 'text/plain');
+        res.setHeader('Content-Length', '2048');
         res.write(Buffer.alloc(1024));
         setTimeout(() => {
           res.end(Buffer.alloc(1024));
@@ -526,288 +516,285 @@ describe("compression()", () => {
       });
 
       request(server)
-        .get("/")
-        .set("Accept-Encoding", "gzip")
-        .expect("Content-Encoding", "gzip", done);
+        .get('/')
+        .set('Accept-Encoding', 'gzip')
+        .expect('Content-Encoding', 'gzip', done);
     });
 
     // res.end(str, encoding) broken in node.js 0.8
     const run = /^v0\.8\./.test(process.version) ? it.skip : it;
-    run("should handle writing hex data", (done) => {
+    run('should handle writing hex data', (done) => {
       const server = createServer({ threshold: 6 }, (req, res) => {
-        res.setHeader("Content-Type", "text/plain");
-        res.end("2e2e2e2e", "hex");
+        res.setHeader('Content-Type', 'text/plain');
+        res.end('2e2e2e2e', 'hex');
       });
 
       request(server)
-        .get("/")
-        .set("Accept-Encoding", "gzip")
-        .expect(shouldNotHaveHeader("Content-Encoding"))
-        .expect(200, "....", done);
+        .get('/')
+        .set('Accept-Encoding', 'gzip')
+        .expect(shouldNotHaveHeader('Content-Encoding'))
+        .expect(200, '....', done);
     });
 
-    it("should consider res.end() as 0 length", (done) => {
+    it('should consider res.end() as 0 length', (done) => {
       const server = createServer({ threshold: 1 }, (req, res) => {
-        res.setHeader("Content-Type", "text/plain");
+        res.setHeader('Content-Type', 'text/plain');
         res.end();
       });
 
       request(server)
-        .get("/")
-        .set("Accept-Encoding", "gzip")
-        .expect(shouldNotHaveHeader("Content-Encoding"))
-        .expect(200, "", done);
+        .get('/')
+        .set('Accept-Encoding', 'gzip')
+        .expect(shouldNotHaveHeader('Content-Encoding'))
+        .expect(200, '', done);
     });
 
-    it("should work with res.end(null)", (done) => {
+    it('should work with res.end(null)', (done) => {
       const server = createServer({ threshold: 1000 }, (req, res) => {
-        res.setHeader("Content-Type", "text/plain");
+        res.setHeader('Content-Type', 'text/plain');
         res.end(null);
       });
 
       request(server)
-        .get("/")
-        .set("Accept-Encoding", "gzip")
-        .expect(shouldNotHaveHeader("Content-Encoding"))
-        .expect(200, "", done);
+        .get('/')
+        .set('Accept-Encoding', 'gzip')
+        .expect(shouldNotHaveHeader('Content-Encoding'))
+        .expect(200, '', done);
     });
   });
 
   describe('when "Accept-Encoding: gzip"', () => {
-    it("should respond with gzip", (done) => {
+    it('should respond with gzip', (done) => {
       const server = createServer({ threshold: 0 }, (req, res) => {
-        res.setHeader("Content-Type", "text/plain");
-        res.end("hello, world");
+        res.setHeader('Content-Type', 'text/plain');
+        res.end('hello, world');
       });
 
       request(server)
-        .get("/")
-        .set("Accept-Encoding", "gzip")
-        .expect("Content-Encoding", "gzip", done);
+        .get('/')
+        .set('Accept-Encoding', 'gzip')
+        .expect('Content-Encoding', 'gzip', done);
     });
 
-    it("should return false writing after end", (done) => {
+    it('should return false writing after end', (done) => {
       const server = createServer({ threshold: 0 }, (req, res) => {
-        res.setHeader("Content-Type", "text/plain");
-        res.end("hello, world");
+        res.setHeader('Content-Type', 'text/plain');
+        res.end('hello, world');
         assert.ok(res.write() === false);
         assert.ok(res.end() === false);
       });
 
       request(server)
-        .get("/")
-        .set("Accept-Encoding", "gzip")
-        .expect("Content-Encoding", "gzip", done);
+        .get('/')
+        .set('Accept-Encoding', 'gzip')
+        .expect('Content-Encoding', 'gzip', done);
     });
   });
 
   describe('when "Accept-Encoding: deflate"', () => {
-    it("should respond with deflate", (done) => {
+    it('should respond with deflate', (done) => {
       const server = createServer({ threshold: 0 }, (req, res) => {
-        res.setHeader("Content-Type", "text/plain");
-        res.end("hello, world");
+        res.setHeader('Content-Type', 'text/plain');
+        res.end('hello, world');
       });
 
       request(server)
-        .get("/")
-        .set("Accept-Encoding", "deflate")
-        .expect("Content-Encoding", "deflate", done);
+        .get('/')
+        .set('Accept-Encoding', 'deflate')
+        .expect('Content-Encoding', 'deflate', done);
     });
   });
 
   describe('when "Accept-Encoding: br"', () => {
-    it("should respond with br", (done) => {
+    it('should respond with br', (done) => {
       const server = createServer({ threshold: 0 }, (req, res) => {
-        res.setHeader("Content-Type", "text/plain");
-        res.end("hello, world");
+        res.setHeader('Content-Type', 'text/plain');
+        res.end('hello, world');
       });
 
       if (zlib.createBrotliCompress) {
         request(server)
-          .get("/")
-          .set("Accept-Encoding", "br")
-          .expect("Content-Encoding", "br", done);
+          .get('/')
+          .set('Accept-Encoding', 'br')
+          .expect('Content-Encoding', 'br', done);
       } else {
         request(server)
-          .get("/")
-          .set("Accept-Encoding", "br")
-          .expect(shouldNotHaveHeader("Content-Encoding"))
-          .expect(200, "hello, world", done);
+          .get('/')
+          .set('Accept-Encoding', 'br')
+          .expect(shouldNotHaveHeader('Content-Encoding'))
+          .expect(200, 'hello, world', done);
       }
     });
-    it("should respond with br, gzip", (done) => {
+    it('should respond with br, gzip', (done) => {
       const server = createServer({ threshold: 0 }, (req, res) => {
-        res.setHeader("Content-Type", "text/plain");
-        res.end("hello, world");
+        res.setHeader('Content-Type', 'text/plain');
+        res.end('hello, world');
       });
 
       if (zlib.createBrotliCompress) {
         request(server)
-          .get("/")
-          .set("Accept-Encoding", "br, gzip")
-          .expect("Content-Encoding", "br", done);
+          .get('/')
+          .set('Accept-Encoding', 'br, gzip')
+          .expect('Content-Encoding', 'br', done);
       } else {
         request(server)
-          .get("/")
-          .set("Accept-Encoding", "br, gzip")
-          .expect("Content-Encoding", "gzip", done);
+          .get('/')
+          .set('Accept-Encoding', 'br, gzip')
+          .expect('Content-Encoding', 'gzip', done);
       }
     });
 
-    it("should respond with gzip when br is disabled disabled", (done) => {
-      const server = createServer(
-        { threshold: 0, brotli: { enabled: false } },
-        (req, res) => {
-          res.setHeader("Content-Type", "text/plain");
-          res.end("hello, world");
-        }
-      );
+    it('should respond with gzip when br is disabled disabled', (done) => {
+      const server = createServer({ threshold: 0, brotli: { enabled: false } }, (req, res) => {
+        res.setHeader('Content-Type', 'text/plain');
+        res.end('hello, world');
+      });
 
       if (zlib.createBrotliCompress) {
         request(server)
-          .get("/")
-          .set("Accept-Encoding", "gzip")
-          .expect("Content-Encoding", "gzip", done);
+          .get('/')
+          .set('Accept-Encoding', 'gzip')
+          .expect('Content-Encoding', 'gzip', done);
       } else {
         request(server)
-          .get("/")
-          .set("Accept-Encoding", "gzip")
-          .expect("Content-Encoding", "gzip", done);
+          .get('/')
+          .set('Accept-Encoding', 'gzip')
+          .expect('Content-Encoding', 'gzip', done);
       }
     });
   });
 
   describe('when "Accept-Encoding: gzip, deflate, br"', () => {
-    it("should respond with br", (done) => {
+    it('should respond with br', (done) => {
       const server = createServer({ threshold: 0 }, (req, res) => {
-        res.setHeader("Content-Type", "text/plain");
-        res.end("hello, world");
+        res.setHeader('Content-Type', 'text/plain');
+        res.end('hello, world');
       });
 
       if (zlib.createBrotliCompress) {
         request(server)
-          .get("/")
-          .set("Accept-Encoding", "gzip, deflate, br")
-          .expect("Content-Encoding", "br", done);
+          .get('/')
+          .set('Accept-Encoding', 'gzip, deflate, br')
+          .expect('Content-Encoding', 'br', done);
       } else {
         request(server)
-          .get("/")
-          .set("Accept-Encoding", "gzip, deflate, br")
-          .expect("Content-Encoding", "gzip", done);
+          .get('/')
+          .set('Accept-Encoding', 'gzip, deflate, br')
+          .expect('Content-Encoding', 'gzip', done);
       }
     });
   });
 
   describe('when "Accept-Encoding: gzip, deflate"', () => {
-    it("should respond with gzip", (done) => {
+    it('should respond with gzip', (done) => {
       const server = createServer({ threshold: 0 }, (req, res) => {
-        res.setHeader("Content-Type", "text/plain");
-        res.end("hello, world");
+        res.setHeader('Content-Type', 'text/plain');
+        res.end('hello, world');
       });
 
       request(server)
-        .get("/")
-        .set("Accept-Encoding", "gzip, deflate")
-        .expect("Content-Encoding", "gzip", done);
+        .get('/')
+        .set('Accept-Encoding', 'gzip, deflate')
+        .expect('Content-Encoding', 'gzip', done);
     });
   });
 
   describe('when "Accept-Encoding: deflate, gzip"', () => {
-    it("should respond with gzip", (done) => {
+    it('should respond with gzip', (done) => {
       const server = createServer({ threshold: 0 }, (req, res) => {
-        res.setHeader("Content-Type", "text/plain");
-        res.end("hello, world");
+        res.setHeader('Content-Type', 'text/plain');
+        res.end('hello, world');
       });
 
       request(server)
-        .get("/")
-        .set("Accept-Encoding", "deflate, gzip")
-        .expect("Content-Encoding", "gzip", done);
+        .get('/')
+        .set('Accept-Encoding', 'deflate, gzip')
+        .expect('Content-Encoding', 'gzip', done);
     });
   });
 
   describe('when "Cache-Control: no-transform" response header', () => {
-    it("should not compress response", (done) => {
+    it('should not compress response', (done) => {
       const server = createServer({ threshold: 0 }, (req, res) => {
-        res.setHeader("Cache-Control", "no-transform");
-        res.setHeader("Content-Type", "text/plain");
-        res.end("hello, world");
+        res.setHeader('Cache-Control', 'no-transform');
+        res.setHeader('Content-Type', 'text/plain');
+        res.end('hello, world');
       });
 
       request(server)
-        .get("/")
-        .set("Accept-Encoding", "gzip")
-        .expect("Cache-Control", "no-transform")
-        .expect(shouldNotHaveHeader("Content-Encoding"))
-        .expect(200, "hello, world", done);
+        .get('/')
+        .set('Accept-Encoding', 'gzip')
+        .expect('Cache-Control', 'no-transform')
+        .expect(shouldNotHaveHeader('Content-Encoding'))
+        .expect(200, 'hello, world', done);
     });
 
-    it("should not set Vary headerh", (done) => {
+    it('should not set Vary headerh', (done) => {
       const server = createServer({ threshold: 0 }, (req, res) => {
-        res.setHeader("Cache-Control", "no-transform");
-        res.setHeader("Content-Type", "text/plain");
-        res.end("hello, world");
+        res.setHeader('Cache-Control', 'no-transform');
+        res.setHeader('Content-Type', 'text/plain');
+        res.end('hello, world');
       });
 
       request(server)
-        .get("/")
-        .set("Accept-Encoding", "gzip")
-        .expect("Cache-Control", "no-transform")
-        .expect(shouldNotHaveHeader("Vary"))
+        .get('/')
+        .set('Accept-Encoding', 'gzip')
+        .expect('Cache-Control', 'no-transform')
+        .expect(shouldNotHaveHeader('Vary'))
         .expect(200, done);
     });
   });
 
-  describe(".filter", () => {
-    it("should be a function", () => {
-      assert.strictEqual(typeof compression.filter, "function");
+  describe('.filter', () => {
+    it('should be a function', () => {
+      assert.strictEqual(typeof compression.filter, 'function');
     });
 
-    it("should return false on empty response", (done) => {
+    it('should return false on empty response', (done) => {
       const server = http.createServer((req, res) => {
         res.end(String(compression.filter(req, res)));
       });
 
-      request(server).get("/").expect(200, "false", done);
+      request(server).get('/').expect(200, 'false', done);
     });
 
     it('should return true for "text/plain"', (done) => {
       const server = http.createServer((req, res) => {
-        res.setHeader("Content-Type", "text/plain");
+        res.setHeader('Content-Type', 'text/plain');
         res.end(String(compression.filter(req, res)));
       });
 
-      request(server).get("/").expect(200, "true", done);
+      request(server).get('/').expect(200, 'true', done);
     });
 
     it('should return false for "application/x-bogus"', (done) => {
       const server = http.createServer((req, res) => {
-        res.setHeader("Content-Type", "application/x-bogus");
+        res.setHeader('Content-Type', 'application/x-bogus');
         res.end(String(compression.filter(req, res)));
       });
 
-      request(server).get("/").expect(200, "false", done);
+      request(server).get('/').expect(200, 'false', done);
     });
   });
 
-  describe("res.flush()", () => {
-    it("should always be present", (done) => {
+  describe('res.flush()', () => {
+    it('should always be present', (done) => {
       const server = createServer(null, (req, res) => {
-        res.statusCode = typeof res.flush === "function" ? 200 : 500;
+        res.statusCode = typeof res.flush === 'function' ? 200 : 500;
         res.flush();
         res.end();
       });
 
-      request(server).get("/").expect(200, done);
+      request(server).get('/').expect(200, done);
     });
 
-    it("should flush the response", (done) => {
+    it('should flush the response', (done) => {
       let chunks = 0;
       let next;
       const server = createServer({ threshold: 0 }, (req, res) => {
         next = writeAndFlush(res, 2, Buffer.alloc(1024));
-        res.setHeader("Content-Type", "text/plain");
-        res.setHeader("Content-Length", "2048");
+        res.setHeader('Content-Type', 'text/plain');
+        res.setHeader('Content-Length', '2048');
         next();
       });
 
@@ -818,12 +805,12 @@ describe("compression()", () => {
       }
 
       request(server)
-        .get("/")
-        .set("Accept-Encoding", "gzip")
+        .get('/')
+        .set('Accept-Encoding', 'gzip')
         .request()
         .on(
-          "response",
-          unchunk("gzip", onchunk, (err) => {
+          'response',
+          unchunk('gzip', onchunk, (err) => {
             if (err) return done(err);
             server.close(done);
             return undefined;
@@ -832,28 +819,28 @@ describe("compression()", () => {
         .end();
     });
 
-    it("should flush small chunks for gzip", (done) => {
+    it('should flush small chunks for gzip', (done) => {
       let chunks = 0;
       let next;
       const server = createServer({ threshold: 0 }, (req, res) => {
-        next = writeAndFlush(res, 2, Buffer.from(".."));
-        res.setHeader("Content-Type", "text/plain");
+        next = writeAndFlush(res, 2, Buffer.from('..'));
+        res.setHeader('Content-Type', 'text/plain');
         next();
       });
 
       function onchunk(chunk) {
         assert.ok((chunks += 1 < 20));
-        assert.strictEqual(chunk.toString(), "..");
+        assert.strictEqual(chunk.toString(), '..');
         next();
       }
 
       request(server)
-        .get("/")
-        .set("Accept-Encoding", "gzip")
+        .get('/')
+        .set('Accept-Encoding', 'gzip')
         .request()
         .on(
-          "response",
-          unchunk("gzip", onchunk, (err) => {
+          'response',
+          unchunk('gzip', onchunk, (err) => {
             if (err) return done(err);
             server.close(done);
             return undefined;
@@ -862,28 +849,28 @@ describe("compression()", () => {
         .end();
     });
 
-    it("should flush small chunks for deflate", (done) => {
+    it('should flush small chunks for deflate', (done) => {
       let chunks = 0;
       let next;
       const server = createServer({ threshold: 0 }, (req, res) => {
-        next = writeAndFlush(res, 2, Buffer.from(".."));
-        res.setHeader("Content-Type", "text/plain");
+        next = writeAndFlush(res, 2, Buffer.from('..'));
+        res.setHeader('Content-Type', 'text/plain');
         next();
       });
 
       function onchunk(chunk) {
         assert.ok((chunks += 1 < 20));
-        assert.strictEqual(chunk.toString(), "..");
+        assert.strictEqual(chunk.toString(), '..');
         next();
       }
 
       request(server)
-        .get("/")
-        .set("Accept-Encoding", "deflate")
+        .get('/')
+        .set('Accept-Encoding', 'deflate')
         .request()
         .on(
-          "response",
-          unchunk("deflate", onchunk, (err) => {
+          'response',
+          unchunk('deflate', onchunk, (err) => {
             if (err) return done(err);
             server.close(done);
             return undefined;
@@ -892,32 +879,29 @@ describe("compression()", () => {
         .end();
     });
 
-    it("should flush small chunks for br", (done) => {
+    it('should flush small chunks for br', (done) => {
       let chunks = 0;
       let next;
-      const server = createServer(
-        { threshold: 0, brotli: { enabled: true } },
-        (req, res) => {
-          next = writeAndFlush(res, 2, Buffer.from(".."));
-          res.setHeader("Content-Type", "text/plain");
-          next();
-        }
-      );
+      const server = createServer({ threshold: 0, brotli: { enabled: true } }, (req, res) => {
+        next = writeAndFlush(res, 2, Buffer.from('..'));
+        res.setHeader('Content-Type', 'text/plain');
+        next();
+      });
 
       function onchunk(chunk) {
         assert.ok((chunks += 1 < 20));
-        assert.strictEqual(chunk.toString(), "..");
+        assert.strictEqual(chunk.toString(), '..');
         next();
       }
 
       if (zlib.createBrotliCompress) {
         request(server)
-          .get("/")
-          .set("Accept-Encoding", "br")
+          .get('/')
+          .set('Accept-Encoding', 'br')
           .request()
           .on(
-            "response",
-            unchunk("br", onchunk, (err) => {
+            'response',
+            unchunk('br', onchunk, (err) => {
               if (err) return done(err);
               server.close(done);
               return undefined;
