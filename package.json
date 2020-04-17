@@ -1,13 +1,9 @@
 {
-  "name": "compression",
-  "description": "Node.js compression middleware",
-  "version": "1.7.4",
-  "contributors": [
-    "Douglas Christopher Wilson <doug@somethingdoug.com>",
-    "Jonathan Ong <me@jongleberry.com> (http://jongleberry.com)"
-  ],
+  "name": "@oohmedia/compression",
+  "description": "Node.js compression middleware, forked from express/compression",
+  "version": "2.0.0",
   "license": "MIT",
-  "repository": "expressjs/compression",
+  "repository": "git://github.com/oohmedia/compression.git",
   "dependencies": {
     "accepts": "^1.3.7",
     "bytes": "^3.1.0",
@@ -30,7 +26,6 @@
   },
   "files": [
     "LICENSE",
-    "HISTORY.md",
     "index.js"
   ],
   "engines": {
@@ -41,6 +36,10 @@
     "prettier": "prettier --write '**/*.js'",
     "test": "mocha --check-leaks --reporter spec --bail",
     "test-cov": "istanbul cover node_modules/mocha/bin/_mocha -- --check-leaks --reporter dot",
-    "test-travis": "istanbul cover node_modules/mocha/bin/_mocha --report lcovonly -- --check-leaks --reporter spec"
+    "test-travis": "istanbul cover node_modules/mocha/bin/_mocha --report lcovonly -- --check-leaks --reporter spec",
+    "prepublishOnly": "yarn lint",
+    "preversion": "yarn lint",
+    "version": "npm prettier && git add -A .",
+    "postversion": "git push && git push --tags"
   }
 }
