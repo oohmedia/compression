@@ -1,9 +1,11 @@
 {
   "name": "@oohmedia/compression",
   "description": "Node.js compression middleware, forked from express/compression",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "license": "MIT",
-  "repository": "git://github.com/oohmedia/compression.git",
+  "repository": "https://github.com/oohmedia/compression",
+  "main": "./index.js",
+  "types": "./index.d.ts",
   "dependencies": {
     "accepts": "^1.3.7",
     "bytes": "^3.1.0",
@@ -13,6 +15,7 @@
     "vary": "^1.1.2"
   },
   "devDependencies": {
+    "@types/node": "13.13.0",
     "after": "0.8.2",
     "eslint": "6.8.0",
     "eslint-config-airbnb-base": "14.1.0",
@@ -26,7 +29,8 @@
   },
   "files": [
     "LICENSE",
-    "index.js"
+    "index.js",
+    "index.d.ts"
   ],
   "engines": {
     "node": ">= 8.15.0"

@@ -93,9 +93,7 @@ function compressionMiddleware(options) {
         this.writeHead(this.statusCode);
       }
 
-      return stream
-        ? stream.write(chunk, encoding)
-        : origWrite.call(this, chunk, encoding);
+      return stream ? stream.write(chunk, encoding) : origWrite.call(this, chunk, encoding);
     };
 
     res.end = function end(chunk, encoding) {
