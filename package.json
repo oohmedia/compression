@@ -45,5 +45,10 @@
     "preversion": "yarn lint",
     "version": "npm prettier && git add -A .",
     "postversion": "git push && git push --tags"
+  },
+  "resolutions": {
+    "handlebars": "^4.7.8",
+    "minimist": "^1.2.6",
+    "form-data": "^2.5.4"
   }
 }
